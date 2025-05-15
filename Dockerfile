@@ -7,7 +7,6 @@ LABEL com.civicactions.image.title="pyaction" \
       com.civicactions.image.authors="CivicActions" \
       com.civicactions.image.url="https://github.com/CivicActions/pyction" \
       com.civicactions.image.license="AGPL-3.0-or-later"
-      org.opencontainers.image.source = "https://github.com/CivicActions/pyction"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
