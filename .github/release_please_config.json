@@ -1,0 +1,5 @@
+{
+  "release-type": "simple",
+  "include-v-in-tag": false,
+  "changelog-path": "CHANGELOG.md"
+}

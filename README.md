@@ -1,75 +1,48 @@
 # 🐍 Pyction
 *(pronounced: **"pik-shun"**)*
 
+Run Python scripts with [`uv`](https://github.com/astral-sh/uv) inside a slim, fast Docker container based on Python 3.13.
+
 [![build](https://github.com/CivicActions/pyction/actions/workflows/build.yml/badge.svg)](https://github.com/CivicActions/pyction/actions/workflows/build.yml) [![updated](https://img.shields.io/github/last-commit/CivicActions/pyction?label=updated&logo=github)](https://github.com/CivicActions/pyction/commits/main)
 
-Minimal Python 3.13 image with [`uv`](https://github.com/astral-sh/uv) preinstalled. Great for fast builds in GitHub Actions, GitLab CI, or local dev.
-
-
-## 🐳 Usage
-
-### Docker
-
-```bash
-docker pull ghcr.io/civicactions/pyction:latest
-```
-Dockerfile
-```dockerfile
-FROM ghcr.io/civicactions/pyction:latest
-WORKDIR /app
-
-COPY pyproject.toml .
-RUN uv pip install -r requirements.txt
-```
-
-
-### GitHub Actions
+## 🔧 Usage
 
 ```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/civicactions/pyction:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: uv sync
+- name: Run Python Script in pyction
+  uses: civicactions/pyction@v1
+  with:
+    script: |
+      uv run your_script.py
+      uv run -m your_thing
 ```
 
+## 💡 Features
 
+- Based on `ghcr.io/civicactions/pyction`
+- Runs inside Docker with full repo access
+- `uv` preinstalled
+- Your `pyproject.toml` is automatically respected
 
-### GitLab CI
+## 🔍 Inputs
+
+| Name   | Required | Description                            |
+|--------|----------|----------------------------------------|
+| script | ✅        | Shell script to execute inside pyction |
+
+## 📦 Example
 
 ```yaml
-default:
-  image: ghcr.io/civicactions/pyction:latest
-
-build:
-  stage: build
-  script:
-    - uv sync
-    - python your_script.py
+- name: Update fingerprints
+  uses: civicactions/pyction@v1
+  with:
+    script: |
+      uv sync
+      uv run scripts/fetch_fingerprints.py
 ```
 
+## 🛠 Maintainers
 
-
-## ✅ What's Inside
-
-- Python 3.13-slim
-- `uv`
-- `git`, `curl`, `ca-certificates`
-- Preconfigured:
-  - `PYTHONDONTWRITEBYTECODE=1`
-  - `PYTHONUNBUFFERED=1`
-  - `WORKDIR /app`
-
-
-
-## 📦 Registry
-
-- `ghcr.io/civicactions/pyction`
-- Built daily from `main`
-
+@CivicActions
 
 
 ## 📄 License
