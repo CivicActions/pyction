@@ -12,10 +12,6 @@ env:
   GHCR_REGISTRY: ghcr.io
   DOCKERHUB_REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
-  DTRACK_PROJECT_ID: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
-  DTRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
-  DTRACK_PROJECT_PATH: "${{ secrets.DEPENDENCYTRACK_PATH }}@${{ github.ref_name }}"
-  DTRACK_BASE_API_URL: "${{ secrets.DEPENDENCYTRACK_BASE_API_URL }}"
 
 permissions:
   contents: read
@@ -81,19 +77,14 @@ jobs:
           syft "$IMAGE_TAG" -o cyclonedx-json > sbom.cyclonedx.json
 
       - name: 🚀 Upload SBOM to Dependency-Track
-        run: |
-          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          echo "📤 Uploading SBOM for $IMAGE_TAG to Dependency-Track..."
-
-          # Encode SBOM to Base64 and write JSON payload to file
-          echo "{\"project\":\"${{ env.DTRACK_PROJECT_ID }}\",\"bom\":\"$(base64 -w 0 sbom.cyclonedx.json)\"}" > payload.json
-
-          # Upload via JSON payload file (POST not PUT)
-          curl -s -o /dev/null -w "%{http_code}\n" \
-            -X POST "${{ env.DTRACK_BASE_API_URL }}/v1/bom" \
-            -H "Content-Type: application/json" \
-            -H "X-Api-Key: ${{ env.DTRACK_API_KEY }}" \
-            -d @payload.json
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          protocol: https
+          serverHostname: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
+          apiKey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
+          project: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
+          bomFilename: sbom.cyclonedx.json
+          autoCreate: true
 
       - name: 📦 Upload SBOM as artifact
         uses: actions/upload-artifact@v4
