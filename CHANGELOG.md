@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/CivicActions/pyction/compare/v1.2.0...v1.2.1) (2025-10-02)
+
+
+### Performance Improvements
+
+* Auto-labeling container streamline ([5e8975f](https://github.com/CivicActions/pyction/commit/5e8975fef300fcc01b3f3acc96eede11a21374f8))
+
 ## [1.2.0](https://github.com/CivicActions/pyction/compare/v1.1.0...v1.2.0) (2025-10-02)
 
 
