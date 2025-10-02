@@ -1,12 +1,15 @@
 # Dockerfile
 FROM python:3.13-slim
 
-LABEL com.civicactions.image.title="pyction" \
-      com.civicactions.image.description="Base image with Python 3.13-slim and uv installed" \
-      com.civicactions.image.version="1.0.0" \
-      com.civicactions.image.authors="CivicActions" \
-      com.civicactions.image.url="https://github.com/CivicActions/pyction" \
-      com.civicactions.image.license="AGPL-3.0-or-later"
+LABEL \
+  org.opencontainers.image.title="pyction" \
+  org.opencontainers.image.description="Base image with Python 3.13-slim and uv installed" \
+  org.opencontainers.image.url="https://github.com/CivicActions/pyction" \
+  org.opencontainers.image.source="https://github.com/CivicActions/pyction" \
+  org.opencontainers.image.version="1.0.0" \
+  org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+  org.opencontainers.image.vendor="CivicActions" \
+  org.opencontainers.image.authors="CivicActions <info@civicactions.com>"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
