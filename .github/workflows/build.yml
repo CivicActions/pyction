@@ -84,7 +84,7 @@ jobs:
           apiKey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
           project: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
           bomFilename: sbom.cyclonedx.json
-          autoCreate: true
+          #autoCreate: true
 
       - name: 📦 Upload SBOM as artifact
         uses: actions/upload-artifact@v4
