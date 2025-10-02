@@ -2,28 +2,20 @@ name: 🏗️ and 📤 🐳 🖼️
 
 on:
   push:
-
   workflow_dispatch:
-
   schedule:
-          #  ┌───────────── minute (0 - 59)
-          #  │ ┌───────────── hour (0 - 23)
-          #  │ │ ┌───────────── day of the month (1 - 31)
-          #  │ │ │ ┌───────────── month (1 - 12 or JAN-DEC)
-          #  │ │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
-          #  │ │ │ │ │
-          #  │ │ │ │ │
-          #  │ │ │ │ │
-          #  * * * * *
     - cron: "0 4 * * *"
-
-  release:                   # full publish only on releases
+  release:
     types: [published]
 
 env:
   GHCR_REGISTRY: ghcr.io
   DOCKERHUB_REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
+  DTRACK_PROJECT_ID: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
+  DTRACK_API_KEY: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
+  DTRACK_PROJECT_PATH: "${{ secrets.DEPENDENCYTRACK_PATH }}@${{ github.ref_name }}"
+  DTRACK_BASE_API_URL: "${{ secrets.DEPENDENCYTRACK_BASE_API_URL }}"
 
 permissions:
   contents: read
@@ -33,12 +25,9 @@ jobs:
   build-and-push-image:
     name: 🏗️📤 Build and push 🐳 image
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: 📦 Checkout repository.
+      - name: 📦 Checkout repository
         uses: actions/checkout@v5
 
       - name: ⚙️ Set up QEMU (multi-arch emulation)
@@ -80,3 +69,30 @@ jobs:
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+
+      # 🧩 Generate and upload SBOM automatically after successful build
+      - name: 🧾 Install Syft
+        uses: anchore/sbom-action/download-syft@v0.17.0
+
+      - name: 🧩 Generate SBOM
+        run: |
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "📦 Generating SBOM for $IMAGE_TAG"
+          syft "$IMAGE_TAG" -o cyclonedx-json > sbom.cyclonedx.json
+
+      - name: 🚀 Upload SBOM to Dependency-Track
+        run: |
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "📤 Uploading SBOM for $IMAGE_TAG to Dependency-Track..."
+          curl -s -o /dev/null -w "%{http_code}\n" \
+            -X POST "${{ env.DTRACK_BASE_API_URL }}/v1/bom" \
+            -H "Content-Type: multipart/form-data" \
+            -H "X-Api-Key: ${{ env.DTRACK_API_KEY }}" \
+            -F "project=${{ env.DTRACK_PROJECT_ID }}" \
+            -F "bom=@sbom.cyclonedx.json"
+
+      - name: 📦 Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cyclonedx.json
