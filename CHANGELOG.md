@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/CivicActions/pyction/compare/v1.0.0...v1.1.0) (2025-10-02)
+
+
+### Features
+
+* multi-arch support ([123cfb5](https://github.com/CivicActions/pyction/commit/123cfb5017f0a212008732885f8895ac1f30ef38))
+
 ## 1.0.0 (2025-06-20)
 
 
