@@ -1,7 +1,7 @@
 # Dockerfile
 FROM python:3.13-slim
 
-LABEL com.civicactions.image.title="pyaction" \
+LABEL com.civicactions.image.title="pyction" \
       com.civicactions.image.description="Base image with Python 3.13-slim and uv installed" \
       com.civicactions.image.version="1.0.0" \
       com.civicactions.image.authors="CivicActions" \
@@ -12,7 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl ca-certificates git \
+  && apt-get install -y --no-install-recommends curl ca-certificates git unzip \
   && curl -LsSf https://astral.sh/uv/install.sh | bash \
   && mv /root/.local/bin/uv /usr/local/bin/uv \
   && rm -rf /root/.local /var/lib/apt/lists/*
