@@ -85,12 +85,12 @@ jobs:
           IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
           echo "📤 Uploading SBOM for $IMAGE_TAG to Dependency-Track..."
 
-          # Encode SBOM to Base64 and write a proper JSON payload file
+          # Encode SBOM to Base64 and write JSON payload to file
           echo "{\"project\":\"${{ env.DTRACK_PROJECT_ID }}\",\"bom\":\"$(base64 -w 0 sbom.cyclonedx.json)\"}" > payload.json
 
-          # Upload via file payload (avoids argument length limits)
+          # Upload via JSON payload file (POST not PUT)
           curl -s -o /dev/null -w "%{http_code}\n" \
-            -X PUT "${{ env.DTRACK_BASE_API_URL }}/v1/bom" \
+            -X POST "${{ env.DTRACK_BASE_API_URL }}/v1/bom" \
             -H "Content-Type: application/json" \
             -H "X-Api-Key: ${{ env.DTRACK_API_KEY }}" \
             -d @payload.json
