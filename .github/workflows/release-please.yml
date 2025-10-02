@@ -1,19 +1,26 @@
-name: Release Please
+name: 🤖 release-please
+
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
-  release:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: 🚀 Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
         with:
           release-type: simple
           config-file: .github/release_please_config.json
