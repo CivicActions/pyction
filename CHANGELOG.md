@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/CivicActions/pyction/compare/v1.1.0...v1.2.0) (2025-10-02)
+
+
+### Features
+
+* enhanced release & auto-tag image version ([8e3b017](https://github.com/CivicActions/pyction/commit/8e3b01724bb5215404d2634c89528078418d561c))
+* label cleanup ([fefb301](https://github.com/CivicActions/pyction/commit/fefb301b3f54ab09a2757a69cb0bd7aa78008667))
+
+
+### Bug Fixes
+
+* old code ([b916747](https://github.com/CivicActions/pyction/commit/b91674764b69adbcf0996debffa97efc0d781570))
+
 ## [1.1.0](https://github.com/CivicActions/pyction/compare/v1.0.0...v1.1.0) (2025-10-02)
 
 
