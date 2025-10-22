@@ -32,7 +32,7 @@ jobs:
       contents: read
       security-events: write
       pull-requests: write
-    timeout-minutes: 45
+    #timeout-minutes: 45
     with:
       # SAST + IaC + path SBOM (fast, no image required)
       scanners: codeql,opengrep,bandit,gitleaks,trivy-iac,checkov,sbom
