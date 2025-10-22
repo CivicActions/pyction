@@ -1,0 +1,15 @@
+# .github/workflows/security.yml
+name: security
+on: [push, pull_request]
+
+jobs:
+  hardening:
+    uses: huntridge-labs/hardening-workflows/.github/workflows/reusable-security-hardening.yml@2.4.0
+    with:
+      scanners: all
+      python_version: '3.12'
+      post_pr_comment: true
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
