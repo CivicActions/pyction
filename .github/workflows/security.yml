@@ -1,31 +1,112 @@
 # .github/workflows/security.yml
 name: security
+
 on:
   pull_request:
   push:
     branches: [ main ]
+  schedule:
+    - cron: '0 4 * * *'   # nightly @ 04:00 UTC
   workflow_dispatch:
 
 concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true
 
+# --- Linting first (Ruff, ESLint, Prettier, markdownlint, yamllint) ---
 jobs:
-  hardening:
+  linting:
+    uses: huntridge-labs/hardening-workflows/.github/workflows/linting.yml@main
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+  # --- Core security hardening (SAST + IaC + SBOM-by-path) ---
+  security:
     name: security-hardening
+    needs: linting
+    if: always()  # still run even if linting fails
     uses: huntridge-labs/hardening-workflows/.github/workflows/reusable-security-hardening.yml@2.4.0
     permissions:
       contents: read
       security-events: write
       pull-requests: write
-    #timeout-minutes: 45
+    timeout-minutes: 45
     with:
-      # Runs immediately without needing a built image:
+      # SAST + IaC + path SBOM (fast, no image required)
       scanners: codeql,opengrep,bandit,gitleaks,trivy-iac,checkov,sbom
       python_version: '3.12'
       post_pr_comment: true
+      codeql_languages: 'python'     # add 'javascript' if you have JS
+      iac_path: 'infrastructure'     # change if IaC elsewhere
+      enable_code_security: true
 
-      # Tweak as needed:
-      codeql_languages: 'python'        # add 'javascript' if you have any JS
-      iac_path: 'infrastructure'        # change if your IaC lives elsewhere
-      enable_code_security: true        # enables SARIF uploads etc.
+  # --- Build & push container image (for container scanners) ---
+  build_image:
+    name: build+push image
+    needs: linting
+    if: >
+      always() &&
+      (github.event_name != 'pull_request' || github.base_ref == 'main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write       # needed to push to GHCR
+    outputs:
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        id: build
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}/pyction:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Push image
+        run: docker push "$IMAGE"
+
+      - name: Expose image_ref
+        id: meta
+        run: echo "image_ref=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  # --- Trivy container scan (image) ---
+  trivy_container:
+    name: trivy-container
+    needs: build_image
+    uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-trivy-container.yml@main
+    with:
+      image_ref: ${{ needs.build_image.outputs.image_ref }}
+      enable_code_security: true
+    permissions:
+      contents: read
+      security-events: write
+
+  # --- Grype vuln scan (image) ---
+  grype:
+    name: grype
+    needs: build_image
+    uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-grype.yml@main
+    with:
+      image_ref: ${{ needs.build_image.outputs.image_ref }}
+    permissions:
+      contents: read
+
+  # --- Syft SBOM (image) ---
+  sbom_image:
+    name: syft-sbom (image)
+    needs: build_image
+    uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-syft.yml@main
+    with:
+      scan-image: ${{ needs.build_image.outputs.image_ref }}
+    permissions:
+      contents: read
