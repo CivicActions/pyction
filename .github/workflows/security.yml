@@ -1,15 +1,31 @@
 # .github/workflows/security.yml
 name: security
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   hardening:
+    name: security-hardening
     uses: huntridge-labs/hardening-workflows/.github/workflows/reusable-security-hardening.yml@2.4.0
-    with:
-      scanners: all
-      python_version: '3.12'
-      post_pr_comment: true
     permissions:
       contents: read
       security-events: write
       pull-requests: write
+    #timeout-minutes: 45
+    with:
+      # Runs immediately without needing a built image:
+      scanners: codeql,opengrep,bandit,gitleaks,trivy-iac,checkov,sbom
+      python_version: '3.12'
+      post_pr_comment: true
+
+      # Tweak as needed:
+      codeql_languages: 'python'        # add 'javascript' if you have any JS
+      iac_path: 'infrastructure'        # change if your IaC lives elsewhere
+      enable_code_security: true        # enables SARIF uploads etc.
