@@ -2,61 +2,62 @@
 name: security
 
 on:
-  pull_request:
   push:
     branches: [ main ]
+  pull_request:
   schedule:
-    - cron: '0 4 * * *'   # nightly @ 04:00 UTC
+    - cron: '0 4 * * *' # nightly @ 04:00 UTC
   workflow_dispatch:
 
 concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true
 
-# --- Linting first (Ruff, ESLint, Prettier, markdownlint, yamllint) ---
 jobs:
+  # 1️⃣ Linting
   linting:
+    name: Lint & Format Check
     uses: huntridge-labs/hardening-workflows/.github/workflows/linting.yml@main
     permissions:
       contents: read
       pull-requests: write
       checks: write
 
-  # --- Core security hardening (SAST + IaC + SBOM-by-path) ---
+  # 2️⃣ Core Security Scanners (SAST + IaC + SBOM by path)
   security:
-    name: security-hardening
+    name: Security Hardening
     needs: linting
-    if: always()  # still run even if linting fails
+    if: always()
     uses: huntridge-labs/hardening-workflows/.github/workflows/reusable-security-hardening.yml@2.4.0
     permissions:
       contents: read
       security-events: write
       pull-requests: write
-    #timeout-minutes: 45
+
     with:
-      # SAST + IaC + path SBOM (fast, no image required)
       scanners: codeql,opengrep,bandit,gitleaks,trivy-iac,checkov,sbom
       python_version: '3.12'
       post_pr_comment: true
-      codeql_languages: 'python'     # add 'javascript' if you have JS
-      iac_path: 'infrastructure'     # change if IaC elsewhere
+      codeql_languages: 'python'
+      iac_path: 'infrastructure'
       enable_code_security: true
 
-  # --- Build & push container image (for container scanners) ---
+  # 3️⃣ Container Image Build
   build_image:
-    name: build+push image
+    name: Build & Push Container
     needs: linting
-    if: >
-      always() &&
-      (github.event_name != 'pull_request' || github.base_ref == 'main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    if: |
+      github.event_name != 'pull_request' || github.base_ref == 'main' ||
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-      packages: write       # needed to push to GHCR
+      packages: write
     outputs:
       image_ref: ${{ steps.meta.outputs.image_ref }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -75,38 +76,38 @@ jobs:
       - name: Push image
         run: docker push "$IMAGE"
 
-      - name: Expose image_ref
+      - name: Set output
         id: meta
         run: echo "image_ref=$IMAGE" >> "$GITHUB_OUTPUT"
 
-  # --- Trivy container scan (image) ---
+  # 4️⃣ Trivy Container Scan
   trivy_container:
-    name: trivy-container
+    name: Trivy Container Scan
     needs: build_image
     uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-trivy-container.yml@main
-    with:
-      image_ref: ${{ needs.build_image.outputs.image_ref }}
-      enable_code_security: true
     permissions:
       contents: read
       security-events: write
-
-  # --- Grype vuln scan (image) ---
-  grype:
-    name: grype
-    needs: build_image
-    uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-grype.yml@main
     with:
       image_ref: ${{ needs.build_image.outputs.image_ref }}
+      enable_code_security: true
+
+  # 5️⃣ Grype Vulnerability Scan
+  grype:
+    name: Grype Vulnerability Scan
+    needs: build_image
+    uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-grype.yml@main
     permissions:
       contents: read
+    with:
+      image_ref: ${{ needs.build_image.outputs.image_ref }}
 
-  # --- Syft SBOM (image) ---
+  # 6️⃣ Syft SBOM (image)
   sbom_image:
-    name: syft-sbom (image)
+    name: Syft SBOM (Container)
     needs: build_image
     uses: huntridge-labs/hardening-workflows/.github/workflows/scanner-syft.yml@main
-    with:
-      scan-image: ${{ needs.build_image.outputs.image_ref }}
     permissions:
       contents: read
+    with:
+      scan-image: ${{ needs.build_image.outputs.image_ref }}
