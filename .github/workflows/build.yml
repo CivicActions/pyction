@@ -24,16 +24,16 @@ jobs:
 
     steps:
       - name: 📦 Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: ⚙️ Set up QEMU (multi-arch emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: 🧱 Set up Docker Buildx (multi-arch builder)
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: 🔑📦 Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
@@ -41,7 +41,7 @@ jobs:
 
       - name: 🔍📝 Extract metadata (🏷️, 🏷️) for 🐳
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           flavor: |
             latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
@@ -56,7 +56,7 @@ jobs:
             type=raw,prefix={{branch}}-,value=latest,priority=200,enable=${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
       - name: Yeet 🐳 🖼️
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -68,7 +68,7 @@ jobs:
 
       # 🧩 Generate and upload SBOM automatically after successful build
       - name: 🧾 Install Syft
-        uses: anchore/sbom-action/download-syft@v0.17.0
+        uses: anchore/sbom-action/download-syft@v0.24.0
 
       - name: 🧩 Generate SBOM
         run: |
@@ -77,17 +77,17 @@ jobs:
           syft "$IMAGE_TAG" -o cyclonedx-json > sbom.cyclonedx.json
 
       - name: 🚀 Upload SBOM to Dependency-Track
-        uses: DependencyTrack/gh-upload-sbom@v3
+        uses: DependencyTrack/gh-upload-sbom@v4.1.0
         with:
           protocol: https
-          serverHostname: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
-          apiKey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
+          apikey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
           project: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
-          bomFilename: sbom.cyclonedx.json
+          bomfilename: sbom.cyclonedx.json
           #autoCreate: true
 
       - name: 📦 Upload SBOM as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: sbom
           path: sbom.cyclonedx.json
