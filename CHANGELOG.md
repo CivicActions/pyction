@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.0.0](https://github.com/CivicActions/pyction/compare/v1.3.0...v2.0.0) (2026-07-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* branch-prefixed image tags (main-<sha>, <branch>-latest) are no longer published; use py3.X-<sha> or semver tags instead. The GitHub Action-style usage documented in the README has been removed — pyction is a base image.
+
+### Features
+
+* multi-Python variants, signing, tag policy ([afd79db](https://github.com/CivicActions/pyction/commit/afd79dbbe8aac4c032cfe0c543dedf1c0c448117))
+* security ci ([0b9a7a3](https://github.com/CivicActions/pyction/commit/0b9a7a3d477fb7b3dbf47df2fdfd548868f1e90a))
+
+
+### Bug Fixes
+
+* ci ([41c511c](https://github.com/CivicActions/pyction/commit/41c511cbe3edf2081f9d6bc78de6b3583f59a46c))
+* ci ([03903ae](https://github.com/CivicActions/pyction/commit/03903ae38c1fd72bda0ad88602ebed452b89c3b2))
+* ci version ([bea9834](https://github.com/CivicActions/pyction/commit/bea9834cafd40a354be58f241e585dea150b1954))
+* file location ([82bdc3b](https://github.com/CivicActions/pyction/commit/82bdc3b44b47289488d21f8a8f3aa1fec8881c58))
+* hardening workflow ([6228be3](https://github.com/CivicActions/pyction/commit/6228be3d0eeec48cdcd9a0d842fe563a2c946760))
+* mvp ([0df634c](https://github.com/CivicActions/pyction/commit/0df634ca3e71c8f227f378f1dd0f35c33b008280))
+* security ([ce2ca12](https://github.com/CivicActions/pyction/commit/ce2ca1252b1bf496df95a0ffd4e62e0919f94deb))
+* security ([1024859](https://github.com/CivicActions/pyction/commit/1024859cb171f192e67e40c0a7c23622cabf143b))
+* startup ([14c6360](https://github.com/CivicActions/pyction/commit/14c6360d8d8a525bf2e1b4a3fc76f77a0174a75f))
+* workflow ([ad2b186](https://github.com/CivicActions/pyction/commit/ad2b186846666bcc833ab474bc36e3fadb86ef6d))
+
 ## [1.3.0](https://github.com/CivicActions/pyction/compare/v1.2.1...v1.3.0) (2025-10-02)
 
 
