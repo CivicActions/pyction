@@ -2,6 +2,8 @@ name: 🏗️ and 📤 🐳 🖼️
 
 on:
   push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: "0 4 * * *"
@@ -10,84 +12,155 @@ on:
 
 env:
   GHCR_REGISTRY: ghcr.io
-  DOCKERHUB_REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
+  DEFAULT_PYTHON: "3.13"
 
 permissions:
   contents: read
   packages: write
+  id-token: write # cosign keyless signing
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-push-image:
-    name: 🏗️📤 Build and push 🐳 image
+    name: 🏗️📤 Build and push 🐳 py${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    env:
+      DT_HOSTNAME: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
 
     steps:
       - name: 📦 Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: ⚙️ Set up QEMU (multi-arch emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: 🧱 Set up Docker Buildx (multi-arch builder)
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: 🔑📦 Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 🔢 Resolve image version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev.$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📌 Image version: $VERSION"
+
       - name: 🔍📝 Extract metadata (🏷️, 🏷️) for 🐳
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           flavor: |
-            latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            latest=false
           images: |
             ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,priority=100,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-            type=semver,pattern={{version}},priority=150
-            type=semver,pattern={{major}}.{{minor}},priority=160
-            type=semver,pattern={{major}},priority=170
-            type=sha,enable=true,prefix={{branch}}-,suffix=,format=short,priority=300
-            type=raw,prefix={{branch}}-,value=latest,priority=200,enable=${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,priority=100,enable=${{ matrix.python-version == env.DEFAULT_PYTHON && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
+            type=raw,value=py${{ matrix.python-version }},priority=110,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
+            type=semver,pattern={{version}},priority=150,enable=${{ matrix.python-version == env.DEFAULT_PYTHON }}
+            type=semver,pattern={{major}}.{{minor}},priority=160,enable=${{ matrix.python-version == env.DEFAULT_PYTHON }}
+            type=semver,pattern={{major}},priority=170,enable=${{ matrix.python-version == env.DEFAULT_PYTHON }}
+            type=semver,pattern={{version}},prefix=py${{ matrix.python-version }}-,priority=180
+            type=sha,prefix=py${{ matrix.python-version }}-,format=short,priority=300
+
+      - name: 🧪🏗️ Build local image for smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: pyction-smoke:py${{ matrix.python-version }}
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            IMAGE_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=py${{ matrix.python-version }}
+          cache-to: type=gha,mode=max,scope=py${{ matrix.python-version }}
+
+      - name: 🧪 Smoke test (python, uv, git, curl, unzip)
+        run: |
+          docker run --rm pyction-smoke:py${{ matrix.python-version }} sh -ec '
+            python --version
+            uv --version
+            uvx --version
+            git --version
+            curl --version | head -n 1
+            unzip -v | head -n 1
+            python -c "import sys; expected = tuple(int(p) for p in \"${{ matrix.python-version }}\".split(\".\")); assert sys.version_info[:2] == expected, f\"expected {expected}, got {sys.version_info[:2]}\""
+          '
+          echo "✅ Smoke test passed for py${{ matrix.python-version }}"
 
       - name: Yeet 🐳 🖼️
-        uses: docker/build-push-action@v6
+        id: push
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            IMAGE_VERSION=${{ steps.version.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
-            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=py${{ matrix.python-version }}
+
+      - name: 🔏 Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: 🔏 Sign image with cosign (keyless)
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            cosign sign --yes "${tag}@${DIGEST}"
+          done <<< "${TAGS}"
 
       # 🧩 Generate and upload SBOM automatically after successful build
       - name: 🧾 Install Syft
-        uses: anchore/sbom-action/download-syft@v0.17.0
+        uses: anchore/sbom-action/download-syft@v0.24.0
 
       - name: 🧩 Generate SBOM
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
         run: |
-          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          echo "📦 Generating SBOM for $IMAGE_TAG"
-          syft "$IMAGE_TAG" -o cyclonedx-json > sbom.cyclonedx.json
+          IMAGE_REF="${GHCR_REGISTRY}/${GITHUB_REPOSITORY,,}@${DIGEST}"
+          echo "📦 Generating SBOM for $IMAGE_REF"
+          syft "$IMAGE_REF" -o cyclonedx-json > sbom.cyclonedx.json
 
       - name: 🚀 Upload SBOM to Dependency-Track
-        uses: DependencyTrack/gh-upload-sbom@v3
+        if: matrix.python-version == env.DEFAULT_PYTHON && env.DT_HOSTNAME != ''
+        uses: DependencyTrack/gh-upload-sbom@v4.1.0
         with:
           protocol: https
-          serverHostname: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
-          apiKey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
+          serverhostname: ${{ secrets.DEPENDENCYTRACK_HOSTNAME }}
+          apikey: ${{ secrets.DEPENDENCYTRACK_API_KEY }}
           project: ${{ secrets.DEPENDENCYTRACK_PROJECT }}
-          bomFilename: sbom.cyclonedx.json
-          #autoCreate: true
+          bomfilename: sbom.cyclonedx.json
 
       - name: 📦 Upload SBOM as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
-          name: sbom
+          name: sbom-py${{ matrix.python-version }}
           path: sbom.cyclonedx.json

@@ -1,19 +1,28 @@
 name: security
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1" # weekly drift detection against fresh CVE data
 
 jobs:
   hardening:
     name: Security Hardening
-    uses: huntridge-labs/hardening-workflows/.github/workflows/reusable-security-hardening.yml@main
+    uses: huntridge-labs/argus/.github/workflows/reusable-security-hardening.yml@1.7.0
     permissions:
       contents: read
       security-events: write
       actions: read
+      packages: read
       pull-requests: write
       checks: write
       id-token: write
     with:
       scanners: all
-      python_version: '3.12'
+      python_version: '3.13'
       post_pr_comment: true
       enable_code_security: true
+      severity_threshold: high

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Monthly, single grouped PR. Base python image deliberately NOT pinned/bumped — the daily rebuild floats on python:X.Y-slim for automatic security patches.",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "schedule": ["* 0-8 1 * *"],
+  "timezone": "America/New_York",
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Never bump the Python base image — PYTHON_VERSION is a deliberate, manual decision tied to the tag policy",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["python"],
+      "enabled": false
+    },
+    {
+      "description": "Group everything else (uv, GitHub Actions, Argus pin) into one monthly PR",
+      "matchManagers": ["dockerfile", "github-actions"],
+      "groupName": "monthly dependency updates",
+      "groupSlug": "monthly-updates"
+    }
+  ]
+}

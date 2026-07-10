@@ -1,11 +1,5 @@
 {
   "release-type": "simple",
-  "include-v-in-tag": false,
-  "changelog-path": "CHANGELOG.md",
-  "extra-files": [{
-    "type": "generic",
-    "path": "Dockerfile",
-    "regex": "org.opencontainers.image.version=\"[0-9]+\\.[0-9]+\\.[0-9]+\"",
-    "replacement": "org.opencontainers.image.version=\"${version}\""
-  }]
+  "include-v-in-tag": true,
+  "changelog-path": "CHANGELOG.md"
 }
